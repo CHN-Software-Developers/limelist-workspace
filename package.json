@@ -5,7 +5,7 @@
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
-    "dist": "electron-builder"
+    "dist": "npx electron-builder"
   },
   "author": "Limelist",
   "license": "MIT",
