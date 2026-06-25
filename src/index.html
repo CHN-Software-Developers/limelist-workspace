@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self';" />
+  <title>Limelist Workspace</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-dot"></span>
+      <h1>Limelist <span>Workspace</span></h1>
+    </div>
+    <div class="date-nav">
+      <button id="prevDay" class="icon-btn" title="Previous day">‹</button>
+      <button id="todayBtn" class="today-btn">Today</button>
+      <button id="nextDay" class="icon-btn" title="Next day">›</button>
+      <div class="date-label" id="dateLabel">—</div>
+    </div>
+    <div class="stats" id="stats"></div>
+  </header>
+
+  <main class="layout">
+    <!-- Editor / task composer -->
+    <aside class="sidebar">
+      <form id="taskForm" class="card editor" autocomplete="off">
+        <h2 id="editorTitle">New task</h2>
+
+        <label class="field">
+          <span>Task</span>
+          <input type="text" id="taskName" placeholder="What are you working on?" maxlength="80" required />
+        </label>
+
+        <div class="time-row">
+          <label class="field">
+            <span>Start</span>
+            <input type="time" id="startTime" required />
+          </label>
+          <label class="field">
+            <span>End</span>
+            <input type="time" id="endTime" required />
+          </label>
+        </div>
+
+        <div class="field">
+          <span>Color</span>
+          <div class="swatches" id="swatches"></div>
+        </div>
+
+        <p class="form-error" id="formError"></p>
+
+        <div class="form-actions">
+          <button type="submit" class="primary-btn" id="submitBtn">Add task</button>
+          <button type="button" class="ghost-btn hidden" id="cancelEdit">Cancel</button>
+        </div>
+      </form>
+
+      <div class="card hint">
+        <p>Tap a task on the timeline to edit it. Tap the circle to mark it done. Block height matches its duration.</p>
+      </div>
+    </aside>
+
+    <!-- Proportional timeline -->
+    <section class="timeline-wrap" id="timelineWrap">
+      <div class="timeline" id="timeline"></div>
+    </section>
+  </main>
+
+  <script src="renderer.js"></script>
+</body>
+</html>

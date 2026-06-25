@@ -1,0 +1,26 @@
+{
+  "name": "limelist-workspace",
+  "version": "1.0.0",
+  "description": "A colorful timeline-based desktop app for managing daily todo activities.",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder"
+  },
+  "author": "Limelist",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^42.5.0"
+  },
+  "build": {
+    "appId": "com.limelist.workspace",
+    "productName": "Limelist Workspace",
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis"
+    }
+  }
+}
