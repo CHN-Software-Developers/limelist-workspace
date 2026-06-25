@@ -13,11 +13,15 @@ A colorful, lightweight Electron desktop app for managing your **daily todo acti
   the day and updates every 15 seconds; the view auto-scrolls to it on launch.
 - **Side-by-side overlaps** — overlapping tasks automatically split into columns
   instead of hiding each other.
-- **Colorful editor** — name a task, set start/end times, pick a color, done.
+- **Popover editor** — the timeline stays full-width; tap the floating **+** button
+  to add a task in a popover, or click any task to edit it. No permanent side panel.
 - **Reminders** — a native desktop notification fires when a task starts.
 - **Mark as done** — tap the circle on any task to complete it.
+- **Import & duplicate across days** — “Import day” copies a whole day's tasks into the
+  one you're viewing (merge or replace); the edit popover can duplicate a single task to any date.
 - **Per-day, persistent storage** — every change is saved to disk immediately, so
   nothing is lost across restarts or reboots. Browse other days with ‹ / Today / ›.
+- **1-week retention** — days older than 7 days are pruned automatically on launch.
 
 ## Run it
 
@@ -46,4 +50,3 @@ A single JSON file in Electron's per-user data directory:
 npm install --save-dev electron-builder
 npm run dist
 ```
-# limelist-workspace

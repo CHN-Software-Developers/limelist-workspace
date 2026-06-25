@@ -3,11 +3,11 @@
 /* ===========================================================================
  * Limelist Workspace — renderer
  * Proportional vertical timeline of daily tasks with a live "now" indicator,
- * reminders, completion toggles, and per-day persistence.
+ * reminders, a popover editor, 1-week retention, and cross-day import/duplicate.
  * ======================================================================== */
 
 const PX_PER_HOUR = 72;        // must match --hour in styles.css
-const MINUTES_PER_DAY = 24 * 60;
+const RETENTION_DAYS = 7;      // keep today + previous 6 days; older is pruned
 const PALETTE = [
   '#ff6b6b', '#ff922b', '#fcc419', '#c6f135',
   '#51cf66', '#22b8cf', '#4dabf7', '#845ef7', '#f06595',
@@ -24,6 +24,8 @@ const el = (id) => document.getElementById(id);
 const timeline = el('timeline');
 const timelineWrap = el('timelineWrap');
 const form = el('taskForm');
+const taskOverlay = el('taskOverlay');
+const importOverlay = el('importOverlay');
 
 // --- Date / time helpers ----------------------------------------------------
 function dateKey(d) {
@@ -31,6 +33,17 @@ function dateKey(d) {
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
+}
+
+function parseDateKey(key) {
+  const [y, m, d] = key.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
+function addDays(d, n) {
+  const r = new Date(d);
+  r.setDate(r.getDate() + n);
+  return r;
 }
 
 function isSameDay(a, b) {
@@ -57,7 +70,7 @@ function formatClock(minutes) {
 function formatHourLabel(hour) {
   const ampm = hour >= 12 && hour < 24 ? 'PM' : 'AM';
   let h = hour % 12 || 12;
-  if (hour === 24) { h = 12; }
+  if (hour === 24) h = 12;
   return `${h} ${ampm}`;
 }
 
@@ -66,13 +79,40 @@ function nowMinutes() {
   return n.getHours() * 60 + n.getMinutes() + n.getSeconds() / 60;
 }
 
-// --- Persistence ------------------------------------------------------------
+function newId() {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
+// Fresh copy of a task for another day: new id, not done, reminder re-armed.
+function cloneTask(t) {
+  return {
+    id: newId(),
+    name: t.name, start: t.start, end: t.end, color: t.color,
+    done: false, notified: false,
+  };
+}
+
+// --- Persistence + retention -----------------------------------------------
 async function persist() {
   try {
     await window.api.save(data);
   } catch (err) {
     console.error('Failed to save data', err);
   }
+}
+
+// Drop any day older than the retention window. Date-string keys sort
+// lexicographically the same as chronologically, so a string compare is safe.
+function pruneOldData() {
+  const cutoff = dateKey(addDays(new Date(), -(RETENTION_DAYS - 1)));
+  let changed = false;
+  for (const key of Object.keys(data)) {
+    if (key < cutoff) {
+      delete data[key];
+      changed = true;
+    }
+  }
+  if (changed) persist();
 }
 
 function tasksForCurrentDay() {
@@ -85,7 +125,7 @@ function setTasksForCurrentDay(tasks) {
 
 // --- Overlap layout ---------------------------------------------------------
 // Assigns each task a column so overlapping tasks sit side by side instead of
-// stacking on top of each other. Returns { columns, totalColumns } per cluster.
+// stacking on top of each other.
 function layoutTasks(tasks) {
   const sorted = [...tasks].sort(
     (a, b) => toMinutes(a.start) - toMinutes(b.start) || toMinutes(a.end) - toMinutes(b.end),
@@ -172,7 +212,7 @@ function renderTimeline() {
   if (!tasks.length) {
     const empty = document.createElement('div');
     empty.className = 'empty-state';
-    empty.textContent = 'No tasks yet. Add one on the left to start your timeline.';
+    empty.innerHTML = 'No tasks yet.<br>Tap the <strong>+</strong> button to add one, or “Import day” to reuse another day.';
     layer.appendChild(empty);
     return;
   }
@@ -222,13 +262,12 @@ function renderTimeline() {
     time.textContent = `${formatClock(start)} – ${formatClock(end)}`;
     block.appendChild(time);
 
-    block.addEventListener('click', () => startEdit(task.id));
+    block.addEventListener('click', () => openEditModal(task.id));
     layer.appendChild(block);
   }
 }
 
 function renderNowLine() {
-  // Remove any previous now-line so we don't stack them.
   const old = timeline.querySelector('.now-line');
   if (old) old.remove();
   if (!isSameDay(currentDate, new Date())) return;
@@ -255,8 +294,7 @@ function shade(hex, percent) {
 
 // --- Mutations --------------------------------------------------------------
 function toggleDone(id) {
-  const tasks = tasksForCurrentDay();
-  const task = tasks.find((t) => t.id === id);
+  const task = tasksForCurrentDay().find((t) => t.id === id);
   if (!task) return;
   task.done = !task.done;
   persist();
@@ -266,11 +304,18 @@ function toggleDone(id) {
 function deleteTask(id) {
   setTasksForCurrentDay(tasksForCurrentDay().filter((t) => t.id !== id));
   persist();
-  resetForm();
+  closeModal(taskOverlay);
   render();
 }
 
-// --- Editor / form ----------------------------------------------------------
+// --- Modal plumbing ---------------------------------------------------------
+function openModal(overlay) { overlay.classList.remove('hidden'); }
+function closeModal(overlay) { overlay.classList.add('hidden'); }
+function anyModalOpen() {
+  return !taskOverlay.classList.contains('hidden') || !importOverlay.classList.contains('hidden');
+}
+
+// --- Editor (popover) -------------------------------------------------------
 function buildSwatches() {
   const wrap = el('swatches');
   wrap.innerHTML = '';
@@ -287,21 +332,32 @@ function buildSwatches() {
   }
 }
 
-function resetForm() {
+function defaultTimes() {
+  const n = new Date();
+  return {
+    start: `${String(n.getHours()).padStart(2, '0')}:00`,
+    end: `${String((n.getHours() + 1) % 24).padStart(2, '0')}:00`,
+  };
+}
+
+function openAddModal() {
   editingId = null;
   form.reset();
   selectedColor = PALETTE[3];
   buildSwatches();
+  const t = defaultTimes();
+  el('startTime').value = t.start;
+  el('endTime').value = t.end;
   el('editorTitle').textContent = 'New task';
   el('submitBtn').textContent = 'Add task';
-  el('cancelEdit').classList.add('hidden');
+  el('deleteBtn').classList.add('hidden');
+  el('dupRow').classList.add('hidden');
   el('formError').textContent = '';
-  // Drop any delete button left over from edit mode.
-  const del = el('deleteBtn');
-  if (del) del.remove();
+  openModal(taskOverlay);
+  el('taskName').focus();
 }
 
-function startEdit(id) {
+function openEditModal(id) {
   const task = tasksForCurrentDay().find((t) => t.id === id);
   if (!task) return;
   editingId = id;
@@ -313,18 +369,11 @@ function startEdit(id) {
 
   el('editorTitle').textContent = 'Edit task';
   el('submitBtn').textContent = 'Save changes';
-  el('cancelEdit').classList.remove('hidden');
-
-  if (!el('deleteBtn')) {
-    const del = document.createElement('button');
-    del.id = 'deleteBtn';
-    del.type = 'button';
-    del.className = 'ghost-btn';
-    del.textContent = 'Delete';
-    del.style.color = 'var(--danger)';
-    del.addEventListener('click', () => deleteTask(id));
-    el('cancelEdit').after(del);
-  }
+  el('deleteBtn').classList.remove('hidden');
+  el('dupRow').classList.remove('hidden');
+  el('dupDate').value = dateKey(addDays(currentDate, 1)); // default: next day
+  el('formError').textContent = '';
+  openModal(taskOverlay);
   el('taskName').focus();
 }
 
@@ -349,35 +398,94 @@ function handleSubmit(e) {
   if (editingId) {
     const task = tasks.find((t) => t.id === editingId);
     if (task) {
-      // Times changed -> allow the reminder to fire again.
-      if (task.start !== start) task.notified = false;
+      if (task.start !== start) task.notified = false; // re-arm reminder
       Object.assign(task, { name, start, end, color: selectedColor });
     }
   } else {
     tasks.push({
-      id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-      name, start, end, color: selectedColor,
+      id: newId(), name, start, end, color: selectedColor,
       done: false, notified: false,
     });
   }
   setTasksForCurrentDay(tasks);
   persist();
-  resetForm();
+  closeModal(taskOverlay);
+  render();
+}
+
+// Duplicate the task being edited into another day, then jump there to show it.
+function duplicateCurrentTask() {
+  if (!editingId) return;
+  const task = tasksForCurrentDay().find((t) => t.id === editingId);
+  if (!task) return;
+  const targetKey = el('dupDate').value;
+  if (!targetKey) {
+    el('formError').textContent = 'Pick a date to duplicate to.';
+    return;
+  }
+  (data[targetKey] = data[targetKey] || []).push(cloneTask(task));
+  persist();
+  closeModal(taskOverlay);
+  currentDate = parseDateKey(targetKey);
+  render();
+  maybeScrollToNow();
+}
+
+// --- Import (popover) -------------------------------------------------------
+function openImportModal() {
+  const sel = el('importSource');
+  const err = el('importError');
+  sel.innerHTML = '';
+  err.textContent = '';
+
+  const curKey = dateKey(currentDate);
+  const keys = Object.keys(data)
+    .filter((k) => k !== curKey && (data[k] || []).length > 0)
+    .sort()
+    .reverse();
+
+  if (!keys.length) {
+    err.textContent = 'No other days with tasks to import from yet.';
+    el('importConfirm').disabled = true;
+  } else {
+    el('importConfirm').disabled = false;
+    for (const k of keys) {
+      const d = parseDateKey(k);
+      const opt = document.createElement('option');
+      opt.value = k;
+      const label = d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+      opt.textContent = `${label} · ${data[k].length} task${data[k].length > 1 ? 's' : ''}`;
+      sel.appendChild(opt);
+    }
+  }
+  openModal(importOverlay);
+}
+
+function doImport() {
+  const src = el('importSource').value;
+  if (!src || !data[src]) return;
+  const mode = el('importMode').value;
+  const clones = data[src].map(cloneTask);
+
+  if (mode === 'replace') {
+    setTasksForCurrentDay(clones);
+  } else {
+    setTasksForCurrentDay([...tasksForCurrentDay(), ...clones]);
+  }
+  persist();
+  closeModal(importOverlay);
   render();
 }
 
 // --- Navigation -------------------------------------------------------------
 function shiftDay(delta) {
-  currentDate.setDate(currentDate.getDate() + delta);
-  currentDate = new Date(currentDate);
-  resetForm();
+  currentDate = addDays(currentDate, delta);
   render();
   maybeScrollToNow();
 }
 
 function goToday() {
   currentDate = new Date();
-  resetForm();
   render();
   maybeScrollToNow();
 }
@@ -389,12 +497,9 @@ function maybeScrollToNow() {
 }
 
 // --- Reminders --------------------------------------------------------------
-// Fires a native notification when a task's start time arrives. Runs only for
-// "today"; marks tasks notified so each reminder fires at most once.
+// Fires a native notification when a task's start time arrives. Always scans
+// *today's* tasks regardless of which day is on screen.
 function checkReminders() {
-  if (!isSameDay(currentDate, new Date())) {
-    // Still need to check today's tasks even if viewing another day.
-  }
   const todayTasks = data[dateKey(new Date())] || [];
   const mins = nowMinutes();
   let changed = false;
@@ -403,8 +508,7 @@ function checkReminders() {
     if (task.notified || task.done) continue;
     const start = toMinutes(task.start);
     if (mins >= start) {
-      // Only actually pop a notification if we're within ~90s of the start,
-      // so reopening the app later doesn't replay every past reminder.
+      // Only pop within ~90s of start so reopening later doesn't replay old ones.
       if (mins - start <= 1.5) {
         window.api.notify('⏰ ' + task.name,
           `Starting now · ${formatClock(start)} – ${formatClock(toMinutes(task.end))}`);
@@ -416,7 +520,6 @@ function checkReminders() {
   if (changed) persist();
 }
 
-// --- Ticking ----------------------------------------------------------------
 function tick() {
   renderNowLine();
   checkReminders();
@@ -425,20 +528,39 @@ function tick() {
 // --- Boot -------------------------------------------------------------------
 async function init() {
   data = (await window.api.load()) || {};
+  pruneOldData();
 
-  // Default the new-task times to a sensible "next hour" block.
-  const n = new Date();
-  const startH = String(n.getHours()).padStart(2, '0');
-  const endH = String((n.getHours() + 1) % 24).padStart(2, '0');
-  el('startTime').value = `${startH}:00`;
-  el('endTime').value = `${endH}:00`;
-
-  buildSwatches();
   render();
   maybeScrollToNow();
 
+  // Editor popover
+  el('fab').addEventListener('click', openAddModal);
   form.addEventListener('submit', handleSubmit);
-  el('cancelEdit').addEventListener('click', resetForm);
+  el('taskClose').addEventListener('click', () => closeModal(taskOverlay));
+  el('deleteBtn').addEventListener('click', () => { if (editingId) deleteTask(editingId); });
+  el('dupBtn').addEventListener('click', duplicateCurrentTask);
+
+  // Import popover
+  el('importBtn').addEventListener('click', openImportModal);
+  el('importConfirm').addEventListener('click', doImport);
+  el('importCancel').addEventListener('click', () => closeModal(importOverlay));
+  el('importClose').addEventListener('click', () => closeModal(importOverlay));
+
+  // Click on a backdrop closes that modal.
+  for (const overlay of [taskOverlay, importOverlay]) {
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) closeModal(overlay);
+    });
+  }
+  // Esc closes whatever is open.
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && anyModalOpen()) {
+      closeModal(taskOverlay);
+      closeModal(importOverlay);
+    }
+  });
+
+  // Date navigation
   el('prevDay').addEventListener('click', () => shiftDay(-1));
   el('nextDay').addEventListener('click', () => shiftDay(1));
   el('todayBtn').addEventListener('click', goToday);

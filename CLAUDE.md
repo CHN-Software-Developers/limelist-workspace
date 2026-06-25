@@ -41,6 +41,18 @@ Plain Electron + vanilla JS/HTML/CSS — no framework, no build step, no bundler
 `data` is `{ 'YYYY-MM-DD': Task[] }`. A `Task` is
 `{ id, name, start: 'HH:MM', end: 'HH:MM', color, done, notified }`.
 Each day is keyed separately; the header's ‹ / Today / › navigation changes `currentDate`.
+`pruneOldData()` runs on boot and deletes any day key older than `RETENTION_DAYS` (7); since
+`YYYY-MM-DD` keys sort lexicographically the same as chronologically, it uses a plain string compare.
+
+### UI surfaces (no permanent sidebar)
+The timeline is full-width. All editing happens in popovers (`.overlay`/`.modal` in index.html):
+- **Task editor** (`taskOverlay`) — opened for new tasks by the floating `+` `#fab`, or for editing by
+  clicking a task block (`openEditModal`). Edit mode additionally reveals the Delete button and the
+  "Duplicate to [date]" row (`#dupRow`).
+- **Import** (`importOverlay`) — `openImportModal` lists every *other* day that has tasks; `doImport`
+  clones them into the current day in `merge` or `replace` mode.
+Modals close on backdrop click, the × button, or Esc. Cross-day copies always go through `cloneTask()`
+(new id, `done:false`, `notified:false`).
 
 ### Timeline rendering (the core concept)
 The timeline is an absolutely-positioned 24-hour column. `PX_PER_HOUR` (renderer.js) **must stay

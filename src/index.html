@@ -19,13 +19,26 @@
       <button id="nextDay" class="icon-btn" title="Next day">›</button>
       <div class="date-label" id="dateLabel">—</div>
     </div>
-    <div class="stats" id="stats"></div>
+    <div class="right-cluster">
+      <div class="stats" id="stats"></div>
+      <button id="importBtn" class="header-btn" title="Copy tasks from another day">⇄ Import day</button>
+    </div>
   </header>
 
   <main class="layout">
-    <!-- Editor / task composer -->
-    <aside class="sidebar">
-      <form id="taskForm" class="card editor" autocomplete="off">
+    <section class="timeline-wrap" id="timelineWrap">
+      <div class="timeline" id="timeline"></div>
+    </section>
+  </main>
+
+  <!-- Floating add button -->
+  <button id="fab" class="fab" title="Add task" aria-label="Add task">+</button>
+
+  <!-- ===== Task editor popover ===== -->
+  <div class="overlay hidden" id="taskOverlay">
+    <div class="modal" role="dialog" aria-modal="true" aria-label="Task editor">
+      <button class="modal-close" id="taskClose" title="Close">×</button>
+      <form id="taskForm" autocomplete="off">
         <h2 id="editorTitle">New task</h2>
 
         <label class="field">
@@ -51,22 +64,49 @@
 
         <p class="form-error" id="formError"></p>
 
+        <!-- shown only when editing an existing task -->
+        <div class="dup-row hidden" id="dupRow">
+          <span>Duplicate to</span>
+          <input type="date" id="dupDate" />
+          <button type="button" id="dupBtn" class="ghost-btn">Duplicate</button>
+        </div>
+
         <div class="form-actions">
           <button type="submit" class="primary-btn" id="submitBtn">Add task</button>
-          <button type="button" class="ghost-btn hidden" id="cancelEdit">Cancel</button>
+          <button type="button" class="ghost-btn danger hidden" id="deleteBtn">Delete</button>
         </div>
       </form>
+    </div>
+  </div>
 
-      <div class="card hint">
-        <p>Tap a task on the timeline to edit it. Tap the circle to mark it done. Block height matches its duration.</p>
+  <!-- ===== Import popover ===== -->
+  <div class="overlay hidden" id="importOverlay">
+    <div class="modal" role="dialog" aria-modal="true" aria-label="Import tasks">
+      <button class="modal-close" id="importClose" title="Close">×</button>
+      <h2>Import a day</h2>
+      <p class="modal-sub">Copy every task from another day into the day you're viewing.</p>
+
+      <label class="field">
+        <span>From day</span>
+        <select id="importSource"></select>
+      </label>
+
+      <label class="field">
+        <span>How</span>
+        <select id="importMode">
+          <option value="merge">Add to existing tasks</option>
+          <option value="replace">Replace existing tasks</option>
+        </select>
+      </label>
+
+      <p class="form-error" id="importError"></p>
+
+      <div class="form-actions">
+        <button type="button" class="primary-btn" id="importConfirm">Import</button>
+        <button type="button" class="ghost-btn" id="importCancel">Cancel</button>
       </div>
-    </aside>
-
-    <!-- Proportional timeline -->
-    <section class="timeline-wrap" id="timelineWrap">
-      <div class="timeline" id="timeline"></div>
-    </section>
-  </main>
+    </div>
+  </div>
 
   <script src="renderer.js"></script>
 </body>
