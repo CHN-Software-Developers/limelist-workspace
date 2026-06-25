@@ -47,14 +47,14 @@
         </label>
 
         <div class="time-row">
-          <label class="field">
+          <div class="field">
             <span>Start</span>
-            <input type="time" id="startTime" required />
-          </label>
-          <label class="field">
+            <div id="startMount"></div>
+          </div>
+          <div class="field">
             <span>End</span>
-            <input type="time" id="endTime" required />
-          </label>
+            <div id="endMount"></div>
+          </div>
         </div>
 
         <div class="field">
@@ -67,7 +67,7 @@
         <!-- shown only when editing an existing task -->
         <div class="dup-row hidden" id="dupRow">
           <span>Duplicate to</span>
-          <input type="date" id="dupDate" />
+          <div id="dupMount"></div>
           <button type="button" id="dupBtn" class="ghost-btn">Duplicate</button>
         </div>
 
@@ -86,18 +86,15 @@
       <h2>Import a day</h2>
       <p class="modal-sub">Copy every task from another day into the day you're viewing.</p>
 
-      <label class="field">
+      <div class="field">
         <span>From day</span>
-        <select id="importSource"></select>
-      </label>
+        <div id="importSourceMount"></div>
+      </div>
 
-      <label class="field">
+      <div class="field">
         <span>How</span>
-        <select id="importMode">
-          <option value="merge">Add to existing tasks</option>
-          <option value="replace">Replace existing tasks</option>
-        </select>
-      </label>
+        <div id="importModeMount"></div>
+      </div>
 
       <p class="form-error" id="importError"></p>
 
@@ -108,6 +105,7 @@
     </div>
   </div>
 
+  <script src="controls.js"></script>
   <script src="renderer.js"></script>
 </body>
 </html>

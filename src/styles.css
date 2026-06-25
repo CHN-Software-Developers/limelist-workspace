@@ -165,8 +165,8 @@ html, body {
   transition: transform .12s, filter .15s;
   z-index: 40;
 }
-.fab:hover { filter: brightness(1.05); transform: translateY(-2px) rotate(90deg); }
-.fab:active { transform: scale(.92); }
+.fab:hover { filter: brightness(1.08); transform: translateY(-2px); box-shadow: 0 14px 34px rgba(198,241,53,0.55), 0 4px 10px rgba(0,0,0,0.4); }
+.fab:active { transform: scale(.94); }
 
 /* ---- Modals / popovers ---- */
 .overlay {
@@ -202,9 +202,9 @@ html, body {
 /* ---- Form fields (used inside modals) ---- */
 .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
 .field > span { font-size: 12px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .4px; }
-.time-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.time-row { display: grid; grid-template-columns: 1fr; gap: 12px; }
 
-input[type="text"], input[type="time"], input[type="date"], select {
+input[type="text"] {
   background: var(--bg-2);
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -215,10 +215,89 @@ input[type="text"], input[type="time"], input[type="date"], select {
   width: 100%;
   transition: border-color .15s, box-shadow .15s;
 }
-input:focus, select:focus {
+input[type="text"]:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(198,241,53,0.18);
 }
+
+/* ---- Custom controls (select / time / date) ---- */
+.cselect { position: relative; }
+.cselect-trigger {
+  width: 100%;
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  color: var(--text); font-size: 14px; cursor: pointer;
+  transition: border-color .15s, box-shadow .15s;
+}
+.cselect-trigger:hover { border-color: #4a3a78; }
+.cselect-trigger.open {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(198,241,53,0.18);
+}
+.cselect-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cselect-label.placeholder { color: var(--muted); }
+.cselect-caret { color: var(--muted); font-size: 11px; pointer-events: none; transition: transform .15s; }
+.cselect-trigger.open .cselect-caret { transform: rotate(180deg); }
+
+.cmenu {
+  position: fixed; z-index: 80;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 6px;
+  max-height: 240px; overflow-y: auto;
+  box-shadow: 0 16px 40px rgba(0,0,0,0.5);
+  animation: fade .12s ease;
+}
+.cmenu-option {
+  display: block; width: 100%; text-align: left;
+  border: none; background: transparent;
+  color: var(--text); font-size: 14px;
+  padding: 9px 12px; border-radius: 8px; cursor: pointer;
+  white-space: nowrap;
+}
+.cmenu-option:hover { background: var(--panel); }
+.cmenu-option.selected { background: var(--accent); color: var(--accent-ink); font-weight: 700; }
+
+.ctime { display: flex; align-items: center; gap: 8px; }
+.ctime .cselect { flex: 1; }
+.ctime .cselect.ampm { flex: 0 0 auto; min-width: 72px; }
+.ctime-colon { color: var(--muted); font-weight: 700; }
+
+.cdate-icon { font-size: 14px; }
+
+.calendar {
+  position: fixed; z-index: 80;
+  width: 280px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px;
+  box-shadow: 0 16px 40px rgba(0,0,0,0.5);
+  animation: fade .12s ease;
+}
+.cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.cal-title { font-weight: 700; font-size: 14px; }
+.cal-nav {
+  width: 30px; height: 30px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--panel);
+  color: var(--text); cursor: pointer; font-size: 16px; line-height: 1;
+}
+.cal-nav:hover { background: var(--bg-2); }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.cal-wd { text-align: center; font-size: 11px; color: var(--muted); padding: 4px 0; font-weight: 600; }
+.cal-cell {
+  aspect-ratio: 1; border: none; background: transparent;
+  color: var(--text); border-radius: 8px; cursor: pointer; font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.cal-cell:hover { background: var(--panel); }
+.cal-cell.empty { visibility: hidden; cursor: default; }
+.cal-cell.today { box-shadow: inset 0 0 0 1px var(--accent); }
+.cal-cell.selected { background: var(--accent); color: var(--accent-ink); font-weight: 700; }
 
 .swatches { display: flex; flex-wrap: wrap; gap: 8px; }
 .swatch {

@@ -27,6 +27,29 @@ const form = el('taskForm');
 const taskOverlay = el('taskOverlay');
 const importOverlay = el('importOverlay');
 
+// Custom (OS-independent) form controls — instantiated in setupControls().
+let startPicker, endPicker, dupPicker, importSourcePicker, importModePicker;
+
+function setupControls() {
+  startPicker = Controls.createTimePicker({ value: '09:00' });
+  endPicker = Controls.createTimePicker({ value: '10:00' });
+  dupPicker = Controls.createDatePicker({ value: dateKey(new Date()) });
+  importModePicker = Controls.createSelect({
+    value: 'merge',
+    options: [
+      { value: 'merge', label: 'Add to existing tasks' },
+      { value: 'replace', label: 'Replace existing tasks' },
+    ],
+  });
+  importSourcePicker = Controls.createSelect({ options: [], placeholder: 'No other days yet' });
+
+  el('startMount').append(startPicker.element);
+  el('endMount').append(endPicker.element);
+  el('dupMount').append(dupPicker.element);
+  el('importModeMount').append(importModePicker.element);
+  el('importSourceMount').append(importSourcePicker.element);
+}
+
 // --- Date / time helpers ----------------------------------------------------
 function dateKey(d) {
   const y = d.getFullYear();
@@ -346,8 +369,8 @@ function openAddModal() {
   selectedColor = PALETTE[3];
   buildSwatches();
   const t = defaultTimes();
-  el('startTime').value = t.start;
-  el('endTime').value = t.end;
+  startPicker.setValue(t.start);
+  endPicker.setValue(t.end);
   el('editorTitle').textContent = 'New task';
   el('submitBtn').textContent = 'Add task';
   el('deleteBtn').classList.add('hidden');
@@ -362,8 +385,8 @@ function openEditModal(id) {
   if (!task) return;
   editingId = id;
   el('taskName').value = task.name;
-  el('startTime').value = task.start;
-  el('endTime').value = task.end;
+  startPicker.setValue(task.start);
+  endPicker.setValue(task.end);
   selectedColor = task.color;
   buildSwatches();
 
@@ -371,7 +394,7 @@ function openEditModal(id) {
   el('submitBtn').textContent = 'Save changes';
   el('deleteBtn').classList.remove('hidden');
   el('dupRow').classList.remove('hidden');
-  el('dupDate').value = dateKey(addDays(currentDate, 1)); // default: next day
+  dupPicker.setValue(dateKey(addDays(currentDate, 1))); // default: next day
   el('formError').textContent = '';
   openModal(taskOverlay);
   el('taskName').focus();
@@ -380,12 +403,12 @@ function openEditModal(id) {
 function handleSubmit(e) {
   e.preventDefault();
   const name = el('taskName').value.trim();
-  const start = el('startTime').value;
-  const end = el('endTime').value;
+  const start = startPicker.getValue();
+  const end = endPicker.getValue();
   const err = el('formError');
 
-  if (!name || !start || !end) {
-    err.textContent = 'Please fill in the task name and both times.';
+  if (!name) {
+    err.textContent = 'Please give the task a name.';
     return;
   }
   if (toMinutes(end) <= toMinutes(start)) {
@@ -418,7 +441,7 @@ function duplicateCurrentTask() {
   if (!editingId) return;
   const task = tasksForCurrentDay().find((t) => t.id === editingId);
   if (!task) return;
-  const targetKey = el('dupDate').value;
+  const targetKey = dupPicker.getValue();
   if (!targetKey) {
     el('formError').textContent = 'Pick a date to duplicate to.';
     return;
@@ -433,9 +456,7 @@ function duplicateCurrentTask() {
 
 // --- Import (popover) -------------------------------------------------------
 function openImportModal() {
-  const sel = el('importSource');
   const err = el('importError');
-  sel.innerHTML = '';
   err.textContent = '';
 
   const curKey = dateKey(currentDate);
@@ -445,26 +466,25 @@ function openImportModal() {
     .reverse();
 
   if (!keys.length) {
+    importSourcePicker.setOptions([]);
     err.textContent = 'No other days with tasks to import from yet.';
     el('importConfirm').disabled = true;
   } else {
     el('importConfirm').disabled = false;
-    for (const k of keys) {
+    importSourcePicker.setOptions(keys.map((k) => {
       const d = parseDateKey(k);
-      const opt = document.createElement('option');
-      opt.value = k;
       const label = d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
-      opt.textContent = `${label} · ${data[k].length} task${data[k].length > 1 ? 's' : ''}`;
-      sel.appendChild(opt);
-    }
+      const n = data[k].length;
+      return { value: k, label: `${label} · ${n} task${n > 1 ? 's' : ''}` };
+    }));
   }
   openModal(importOverlay);
 }
 
 function doImport() {
-  const src = el('importSource').value;
+  const src = importSourcePicker.getValue();
   if (!src || !data[src]) return;
-  const mode = el('importMode').value;
+  const mode = importModePicker.getValue();
   const clones = data[src].map(cloneTask);
 
   if (mode === 'replace') {
@@ -530,6 +550,7 @@ async function init() {
   data = (await window.api.load()) || {};
   pruneOldData();
 
+  setupControls();
   render();
   maybeScrollToNow();
 

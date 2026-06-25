@@ -54,6 +54,15 @@ The timeline is full-width. All editing happens in popovers (`.overlay`/`.modal`
 Modals close on backdrop click, the × button, or Esc. Cross-day copies always go through `cloneTask()`
 (new id, `done:false`, `notified:false`).
 
+### Custom form controls (`src/controls.js`)
+All `<select>` / `<input type="time">` / `<input type="date">` are replaced with themed, OS-independent
+widgets so the UI looks the same on every platform. `window.Controls` exposes `createSelect`,
+`createTimePicker` (hour + minute + AM/PM selects → `'HH:MM'`), and `createDatePicker` (calendar popover).
+Each returns `{ element, getValue, setValue, ... }`. `setupControls()` in renderer.js instantiates them
+and mounts them into the `*Mount` div placeholders in index.html; the rest of the renderer only ever
+calls `getValue()/setValue()` — never `.value` on a native element. Dropdown menus and the calendar are
+appended to `<body>` with `position:fixed` so a scrolling modal never clips them.
+
 ### Timeline rendering (the core concept)
 The timeline is an absolutely-positioned 24-hour column. `PX_PER_HOUR` (renderer.js) **must stay
 in sync with `--hour` in styles.css** — both define the vertical scale.
